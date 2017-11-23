@@ -41,7 +41,9 @@ class ClientServer(object):
             raise e
         
         #Server Local IP
-        self.server_ip = '192.168.0.101'
+        #self.server_ip = '192.168.0.101'
+        #Server Public IP
+        self.server_ip = '73.90.155.22'
         #Connect to server on this port
         self.port = 1947 
         try:
