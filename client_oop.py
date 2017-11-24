@@ -91,11 +91,12 @@ class ClientServer(object):
 
     def recv_file(self,filename,size):
         self.lobj.logger.info("Receiving dowloaded mp3 from server..")
-        with open(filename,'w') as fh:
+        with open(filename,'wb') as fh:
             #while True:
             #t1 = time.time()
             t1 = timer()
-            while int(size) >= len(filename):
+            #while int(size) >= len(filename):
+            while True:
                 try:
                     data = self.cobj.recv(1024)
                     fh.write(data)
