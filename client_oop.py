@@ -41,7 +41,9 @@ class ClientServer(object):
             raise e
         
         #Server Local IP
-        self.server_ip = '192.168.0.101'
+        #self.server_ip = '192.168.0.101'
+        #Server Public IP
+        self.server_ip = '73.90.155.22'
         #Connect to server on this port
         self.port = 1947 
         try:
@@ -89,11 +91,12 @@ class ClientServer(object):
 
     def recv_file(self,filename,size):
         self.lobj.logger.info("Receiving dowloaded mp3 from server..")
-        with open(filename,'w') as fh:
+        with open(filename,'wb') as fh:
             #while True:
             #t1 = time.time()
             t1 = timer()
-            while int(size) >= len(filename):
+            #while int(size) >= len(filename):
+            while True:
                 try:
                     data = self.cobj.recv(1024)
                     fh.write(data)
@@ -149,6 +152,6 @@ def getArgs():
 
 if __name__ == '__main__':
     link = getArgs()
-    obj = ClientServer(link)
+    obj = ClientServer(link.rstrip())
     obj.runTest()
 
