@@ -151,6 +151,6 @@ def getArgs():
 
 if __name__ == '__main__':
     link = getArgs()
-    obj = ClientServer(link)
+    obj = ClientServer(link.rstrip())
     obj.runTest()
 
