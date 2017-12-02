@@ -71,20 +71,15 @@ class ServerConnect(object):
             raise e
         '''
         self.obj.logger.info("Now receiving data from Client")
+        self.client_data = self.cs.recv(self.buffer_size)
+        self.client_youtube_links = self.client_data.split(',')
         while True:
-            #try:
              self.client_data = self.cs.recv(self.buffer_size)
-             #self.obj.logger.info("Data received and its length : {} - {}".format(self.client_data,len(self.client_data)))
              if self.client_data:
                 self.obj.logger.info("More data coming")
-                self.client_youtube_links.append(self.client_data)
              else:
                 self.obj.logger.info("No more data")
                 break
-            #except Exception as e:
-             #self.obj.logger.error("Failure to receive the data from client")
-
-        #self.obj.logger.info("Actual data and its length, received from client: {} - {} bytes".format(self.save_data,len(self.save_data)))
         self.obj.logger.info("List of Youtube Links received from client: {} ".format(self.client_youtube_links))
 
 
@@ -96,15 +91,17 @@ class ServerConnect(object):
         #return
         try:
             mp3_files = glob.glob("/home/neo/public_html/myDrive/youtube_downloads/audio/*mp3")
+            self.obj.logger.info("Total no of mp3 files to be sent : {}".format(len(mp3_files)))
+            self.cs.send(str(len(mp3_files)))
             for mp3 in mp3_files:
                 #Send file-size and name of audio file
-                self.obj.logger.info("Send file size")
+                self.obj.logger.info("Send file size of "+mp3)
                 file_size = os.path.getsize(mp3)
                 self.cs.send(str(file_size))
                 time.sleep(1)
                 basename = os.path.basename(mp3)
                 mp3_name = ''.join(e for e in basename[:-4] if e.isalnum())+'.mp3'
-                self.obj.logger.info("Send file name")
+                self.obj.logger.info("Send file name "+mp3_name)
                 self.cs.send(str(mp3_name))
                 time.sleep(1)
                 self.obj.logger.info("Sending {} data to client".format(mp3_name))
@@ -115,7 +112,7 @@ class ServerConnect(object):
                     data = fh.read(1024)
                 fh.close()
                 self.obj.logger.info("Sending {} to client complete.".format(mp3_name))
-                time.sleep(1)
+                time.sleep(2)
         except Exception as e:
             self.obj.logger.error(e)
             self.obj.logger.error("Failed to send the data to client")
@@ -125,13 +122,16 @@ class ServerConnect(object):
         """Function to download youtube links
         Use thread here. One to download youtube videos and one to send the status of download to client
         """
+        #time.sleep(10)
+        #return
         for link in self.client_youtube_links:
             self.yt = Youtubedl(link)
             status = self.yt.runYoutube()
         #Reset youtube_links_list
         self.client_youtube_links = []
         #Set the flag once download is complete
-        self.download_flag = 0
+        #self.download_flag = 0
+        time.sleep(5)
 
     def send_download_status(self):
         """Function to send download status to client every 5 sec

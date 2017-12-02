@@ -19,7 +19,8 @@ class ClientServer(object):
     """Class to setup Client server connection, send and receive messages
     """
     def __init__(self,link):
-        self.link = link.split(',')
+        #self.link = link.split(',')
+        self.link = link
         #Create logger instance to save the logs
         self.lobj = Logs("client_logs.txt")
         #Create socket
@@ -46,6 +47,8 @@ class ClientServer(object):
         self.server_ip = '73.90.155.22'
         #Connect to server on this port
         self.port = 1947 
+
+    def connect_server(self):
         try:
             self.lobj.logger.info("Connecting to server {} on port {}".format(self.server_ip,self.port))
             self.cobj.connect((self.server_ip,self.port))
@@ -68,17 +71,19 @@ class ClientServer(object):
             self.lobj.logger.error("Could not recv data from server")
             raise e
         '''
+        self.connect_server()
         self.lobj.logger.info("Sending below youtube-link(s) to server")
         try:
-            for link in self.link:
-                self.lobj.logger.info(link)
+            #for link in self.link:
+            self.lobj.logger.info(self.link)
                 #self.cobj.send(link)
-                self.cobj.sendall(link)
+            self.cobj.sendall(self.link)
         except Exception as e:
             self.lobj.logger.error(e)
             self.lobj.logger.error("Failure to send the data")
 
         self.cobj.shutdown(socket.SHUT_WR)
+
 
     def check_status(self):
         """Function to check the server status every 5 sec
@@ -92,20 +97,18 @@ class ClientServer(object):
     def recv_file(self,filename,size):
         self.lobj.logger.info("Receiving dowloaded mp3 from server..")
         with open(filename,'wb') as fh:
-            #while True:
-            #t1 = time.time()
             t1 = timer()
-            #while int(size) >= len(filename):
-            while True:
+            data = self.cobj.recv(1024)
+            fh.write(data)
+            recv_data = len(data)
+            while recv_data < size:
                 try:
                     data = self.cobj.recv(1024)
                     fh.write(data)
-                    if not data:
-                        break
+                    recv_data += len(data)
                 except Exception as e:
                     self.lobj.logger.error("Failed to recv data from server")
-            #t2 = time.time()
-            t2 = timer()
+            t2 = time.time()
         self.lobj.logger.info("Finished Receiving")
         self.nw_speed = (float(size)/(1024*1024)) / (t2 - t1)
         
@@ -115,24 +118,31 @@ class ClientServer(object):
         For each link server will send mp3 and mp4 file
         1. Based on total no of links twice no of files will be created
         """
-        length_of_file = self.cobj.recv(1024)
-        self.download_status_flag=0 #Reset download_status flag indicating server is ready to transfert the file
-        time.sleep(1)
-        name_of_file = self.cobj.recv(1024)
-        self.lobj.logger.info("Receiving File From Server :: Name -> {} Size -> {} bytes".format(name_of_file,length_of_file))
-        time.sleep(1)
-        self.recv_file(name_of_file,length_of_file)
+        i = 0
+        self.lobj.logger.info("Waiting for server to send the files")
+        no_of_files = self.cobj.recv(1024)
+        self.lobj.logger.info("Total no of files to be received from server is : {}".format(no_of_files))
+        while i < int(no_of_files):
+            length_of_file = int(self.cobj.recv(1024))
+            self.download_status_flag=0 #Reset download_status flag indicating server is ready to transfert the file
+            time.sleep(1)
+            name_of_file = self.cobj.recv(1024)
+            self.lobj.logger.info("Receiving File From Server :: Name -> {} Size -> {} bytes".format(name_of_file,length_of_file))
+            time.sleep(1)
+            self.recv_file(name_of_file,length_of_file)
+            time.sleep(2)
+            i += 1
          
 
     def runTest(self):
         #Define steps here
         self.setup_client()
         self.send_data()
-        t1 = threading.Thread(target=self.check_status)
+        #t1 = threading.Thread(target=self.check_status)
         t2 = threading.Thread(target=self.recv_data)
-        t1.start()
+        #t1.start()
         t2.start()
-        t1.join()
+        #t1.join()
         t2.join()
         time.sleep(1)
         self.lobj.logger.info("Network Speed is {} mb/sec".format(self.nw_speed))
@@ -152,6 +162,6 @@ def getArgs():
 
 if __name__ == '__main__':
     link = getArgs()
-    obj = ClientServer(link.rstrip())
+    obj = ClientServer(link.strip())
     obj.runTest()
 
