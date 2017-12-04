@@ -20,6 +20,7 @@ class Youtubedl(object):
         self.logfile = "youtube_logs.txt" # Log file to store all the logs when script is run.
         self.obj = Logs(self.logfile) #Create logger instance
         self.err = 0 #Default return status of the test
+        self.current_download_folder = "/home/neo/public_html/myDrive/youtube_downloads"
         self.audio_folder = "/home/neo/public_html/myDrive/youtube_downloads/audio"
         self.video_folder = "/home/neo/public_html/myDrive/youtube_downloads/video"
 
@@ -96,7 +97,7 @@ class Youtubedl(object):
         for files in files_list:
             self.obj.logger.info("Moving {} to {}".format(files,folder))
             try:
-                os.rename('{}'.format(files),'{}/{}'.format(folder,files))
+                os.rename('{}'.format(files),'{}/{}'.format(folder,os.path.basename(files)))
             except Exception as e:
                 self.obj.logger.error(e)
                 self.obj.logger.error("Failed to move downloaded files to youtube download folder")
@@ -107,18 +108,18 @@ class Youtubedl(object):
         """
         self.obj.logger.info("Saving downloaded audio files to {} ".format(self.audio_folder))
         self.obj.logger.info("Saving downloaded video files to {} ".format(self.video_folder))
-        mp3_files = glob.glob("*.mp3")
-        mp4_files = glob.glob("*.mp4")
+        mp3_files = glob.glob(r"{}/*.mp3".format(self.current_download_folder))
+        mp4_files = glob.glob(r"{}/*.mp4".format(self.current_download_folder))
         self.move_files(mp3_files,self.audio_folder)
         self.move_files(mp4_files,self.video_folder)
 
     def list_all_downloads(self):
-        folder_list = [self.audio_folder,self.video_folder]
-        for folder in folder_list:
-            result = glob.glob("{}/*".format(folder))
-            self.obj.logger.info("List of donwloaded files in {}".format(folder))
-            for downloaded in result:
-                self.obj.logger.info(downloaded)
+        #folder_list = [self.audio_folder,self.video_folder]
+        #for folder in folder_list:
+        result = glob.glob("{}/*.mp[3|4]".format(self.current_download_folder))
+            #self.obj.logger.info("List of donwloaded files in {}".format(folder))
+            #for downloaded in result:
+        self.obj.logger.info(result)
 
 
     def download_link(self):
@@ -127,13 +128,12 @@ class Youtubedl(object):
         #pdb.set_trace()
         for link in self.links:
             self.obj.logger.info("Going to download : {}".format(link))
-            cmd = "youtube-dl -k -x --audio-quality 2 --audio-format mp3 -f mp4 {}".format(link)
+            cmd = r"youtube-dl -o '{}/%(title)s.%(ext)s' -k -x --audio-quality 2 --audio-format mp3 -f mp4 {}".format(self.current_download_folder,link)
             self.obj.logger.info(cmd)
             try:
                 result = sp.check_output(cmd,shell=True)
                 self.obj.logger.debug(result)
-                self.save_to_youtube_downloads_folder()
-                #self.list_all_downloads()
+                #self.save_to_youtube_downloads_folder()
             except Exception as e:
                 self.obj.logger.error(e)
                 self.obj.logger.error("Failed to download youtube video and audio!!!")
@@ -147,6 +147,7 @@ class Youtubedl(object):
         self.check_youtube()
         self.downloads_folder()
         self.download_link()
+        #self.save_to_youtube_downloads_folder()
         return self.err
 
 
@@ -165,6 +166,7 @@ if __name__ == "__main__":
     link = getArgs()
     ytObj = Youtubedl(link)
     status = ytObj.runYoutube()
+    ytObj.save_to_youtube_downloads_folder()
     print "Test finished with return status as {}".format(status)
     sys.exit(status)
 
