@@ -42,9 +42,9 @@ class ClientServer(object):
             raise e
         
         #Server Local IP
-        #self.server_ip = '192.168.0.101'
+        self.server_ip = '192.168.0.101'
         #Server Public IP
-        self.server_ip = '73.90.155.22'
+        #self.server_ip = '73.90.155.22'
         #Connect to server on this port
         self.port = 1947 
 
@@ -138,11 +138,11 @@ class ClientServer(object):
         #Define steps here
         self.setup_client()
         self.send_data()
-        #t1 = threading.Thread(target=self.check_status)
+        t1 = threading.Thread(target=self.check_status)
         t2 = threading.Thread(target=self.recv_data)
-        #t1.start()
+        t1.start()
         t2.start()
-        #t1.join()
+        t1.join()
         t2.join()
         time.sleep(1)
         self.lobj.logger.info("Network Speed is {} mb/sec".format(self.nw_speed))
