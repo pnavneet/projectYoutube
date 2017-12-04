@@ -90,8 +90,9 @@ class ServerConnect(object):
         #self.cs.send("Save data in file dont print.")
         #return
         try:
-            mp3_files = glob.glob("/home/neo/public_html/myDrive/youtube_downloads/audio/*mp3")
-            self.obj.logger.info("Total no of mp3 files to be sent : {}".format(len(mp3_files)))
+            #mp3_files = glob.glob("/home/neo/public_html/myDrive/youtube_downloads/audio/*mp3")
+            mp3_files = glob.glob("/home/neo/public_html/myDrive/youtube_downloads/*.mp*")
+            self.obj.logger.info("Total no of files to be sent : {}".format(len(mp3_files)))
             self.cs.send(str(len(mp3_files)))
             for mp3 in mp3_files:
                 #Send file-size and name of audio file
@@ -100,7 +101,8 @@ class ServerConnect(object):
                 self.cs.send(str(file_size))
                 time.sleep(1)
                 basename = os.path.basename(mp3)
-                mp3_name = ''.join(e for e in basename[:-4] if e.isalnum())+'.mp3'
+                #ext = basename[-4:]
+                mp3_name = ''.join(e for e in basename[:-4] if e.isalnum())+basename[-4:]
                 self.obj.logger.info("Send file name "+mp3_name)
                 self.cs.send(str(mp3_name))
                 time.sleep(1)
@@ -122,11 +124,11 @@ class ServerConnect(object):
         """Function to download youtube links
         Use thread here. One to download youtube videos and one to send the status of download to client
         """
-        #time.sleep(10)
-        #return
         for link in self.client_youtube_links:
             self.yt = Youtubedl(link)
+            #time.sleep(10)
             status = self.yt.runYoutube()
+        #return
         #Reset youtube_links_list
         self.client_youtube_links = []
         #Set the flag once download is complete
@@ -165,9 +167,11 @@ class ServerConnect(object):
             time.sleep(5)
             self.obj.logger.info("Now sending data to client")
             self.send_data()
+            self.yt.save_to_youtube_downloads_folder()
             self.obj.logger.info("Closing the connection with Client\n")
             self.obj.logger.info("************************************\n")
             self.cs.close()
+            #self.yt.save_to_youtube_downloads_folder()
 
     def runTest(self):
         #Define steps here
