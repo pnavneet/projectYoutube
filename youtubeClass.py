@@ -275,7 +275,8 @@ class Youtubedl(object):
 
 
 class Logs(object):
-    # Function to display script logs and save it in the log file
+    """Function to display script logs and save it in the log file
+    """
 
     def __init__(self,logfile):
         self.logfile = logfile
