@@ -77,8 +77,7 @@ class Youtubedl(object):
         """
         self.obj.logger.info(cmd)
         try:
-            output = sp.check_output(cmd,shell=True,text=True)
-            statusCode = 0
+            (statusCode,output) = sp.getstatusoutput(cmd)
             self.obj.logger.info(output) if len(argv) else None
         except sp.CalledProcessError as e:
             self.obj.logger.error("Fail to run {} cmd".format(cmd))
@@ -105,14 +104,16 @@ class Youtubedl(object):
         cmd = "wget https://yt-dl.org/downloads/latest/youtube-dl -O /usr/local/bin/youtube-dl"
         self.obj.logger.info("Installing youtubedl")
         (output,statusCode) = self.runCmd(cmd)
-        if(output != 0):
+        #if(output != 0):
+        if(statusCode != 0):
             self.obj.logger.error("Failed to install Youtube-Dl. Exiting!!")
             sys.exit(1)
         else:
             cmd = "apt-get install libav-tools"
             self.obj.logger.info("Installing avconv")
             (output,statusCode) = self.runCmd(cmd)
-            if(output != 0):
+            #if(output != 0):
+            if(statusCode != 0):
                 self.obj.logger.error("Failed to install Avconv. Exiting!!")
                 sys.exit(1)
 
@@ -122,7 +123,7 @@ class Youtubedl(object):
         cmd = "youtube-dl --version"
         (output,statusCode) = self.runCmd(cmd)
         if(statusCode == 0):
-            self.obj.logger.info("Current youtube-dl version is {}".format(output.strip()))
+            self.obj.logger.info("Current youtube-dl version is {}".format(output))
         else:
             self.obj.logger.debug("Can not get current Youtube-Dl version")
 
@@ -130,8 +131,7 @@ class Youtubedl(object):
         cmd = "youtube-dl -U"
         (output,statusCode) = self.runCmd(cmd)
         if(statusCode == 0):
-            #pdb.set_trace()
-            version = self.regEx(output.strip(),r'[\d.]+').group(0)
+            version = self.regEx(output,r'[\d.]+').group(0)
             self.obj.logger.info("Updated version is {}".format(version))
         else:
             self.obj.logger.debug("Can not update Youtube-Dl to latest version")
@@ -250,9 +250,6 @@ class Youtubedl(object):
                         self.obj.logger.info(line)
                         isDownload = True
                         break
-        else:
-            return(False)
-
         return(isDownload)
 
     def runYoutube(self):
