@@ -1,153 +1,299 @@
 #!/usr/bin/python
-try:
-    import os,sys,time
-    import glob
-    import subprocess as sp
-    import argparse
-    import re
-    import threading
-    import glob
-    import pdb
-    from logModule import Logs
-except ImportError:
-    raise ImportError("\n -E- Encountered import python exception!!!")
+import os,sys,time, shutil
+import glob
+import subprocess as sp
+import argparse
+import re
+import threading
+import glob
+import pdb
+import logging
+
 
 class Youtubedl(object):
     """Using youtube-dl to download the audio and video of the given link
     """
     def __init__(self,link):
-        self.links = link.split(',')
-        self.logfile = "youtube_logs.txt" # Log file to store all the logs when script is run.
-        self.obj = Logs(self.logfile) #Create logger instance
-        self.err = 0 #Default return status of the test
-        self.audio_folder = "/home/neo/public_html/myDrive/youtube_downloads/audio"
-        self.video_folder = "/home/neo/public_html/myDrive/youtube_downloads/video"
 
-    def install_youtbedl_avconv(self):
+        #Store youtube links in a list
+        self.links = link.split(',')
+
+        #setting error to 0
+        self.error = 0
+
+        #Project Youtube Folders and Log file
+        self.parentFolder = r"/home/neo/youtube/"
+        self.youtubeDownloadFolder = "{}downloads/".format(self.parentFolder)
+        self.youtubeAudioFolder = "{}audio".format(self.youtubeDownloadFolder)
+        self.youtubeVideoFolder = "{}video".format(self.youtubeDownloadFolder)
+        self.youtubeLogsFolder = "{}logs/".format(self.parentFolder)
+        self.youtubeLogFile = "{}youtubeLogs.txt".format(self.youtubeLogsFolder)
+        #This file will contain the youtube links which are already downloaded
+        self.youtubeDownloadLinksFile = "{}youtubeDownlaodLinkFile.txt".format(self.youtubeDownloadFolder)
+
+        #Check folder existence
+        self.checkAndCreateFolders()
+
+        #Create logger instance
+        self.obj = Logs(self.youtubeLogFile)
+
+    def checkAndCreateFolders(self):
+        """Create project youtube folders
+        """
+        #If parent folder does not exists, create parent and all sub-folders
+        if not os.path.exists(self.parentFolder):
+            self.createFolder(self.parentFolder)
+            self.createFolder(self.youtubeDownloadFolder)
+            self.createFolder(self.youtubeAudioFolder)
+            self.createFolder(self.youtubeVideoFolder)
+            self.createFolder(self.youtubeLogsFolder)
+        #Else check and create sub-folders
+        elif not os.path.exists(self.youtubeDownloadFolder):
+            self.createFolder(self.youtubeDownloadFolder)
+        elif not os.path.exists(self.youtubeAudioFolder):
+            self.createFolder(self.youtubeAudioFolder)
+        elif not os.path.exists(self.youtubeVideoFolder):
+            self.createFolder(self.youtubeVideoFolder)
+        elif not os.path.exists(self.youtubeLogsFolder):
+            self.createFolder(self.youtubeLogsFolder)
+
+    def createFolder(self,folder):
+        """
+        Input : folder to be created
+        """
+        try:
+            print("Creating {}".format(folder))
+            os.makedirs(folder)
+        except Exception as e:
+            print(e)
+            print("Unable to create {}. Please check storage space and permissions")
+            print("Exiting from script")
+            sys.exit(-1)
+
+    def runCmd(self,cmd,*argv):
+        """Function to run command and return output and result
+        Input : cmd
+        Output : (output,statusCode)
+        """
+        self.obj.logger.info(cmd)
+        try:
+            (statusCode,output) = sp.getstatusoutput(cmd)
+            self.obj.logger.info(output) if len(argv) else None
+        except sp.CalledProcessError as e:
+            self.obj.logger.error("Fail to run {} cmd".format(cmd))
+            #self.obj.logger.error(e)
+            statusCode = e.returncode
+            output = e.output
+
+        return(output,statusCode)
+
+    def regEx(self,data,pattern):
+        """
+        Input : data, pattern
+        Output : searched pattern
+        """
+        try:
+            return(re.search(pattern,data))
+        except Exception as e:
+            self.obj.logger.error("Not able to find pattern in the data")
+            return(1)
+
+    def installYoutbedlAvconv(self):
         """Function to install youtubedl and avconv
         """
-        ytCmd = "sudo wget https://yt-dl.org/downloads/latest/youtube-dl -O /usr/local/bin/youtube-dl"
-        avCmd = "sudo apt-get install libav-tools"
-        try:
-            self.obj.logger.info("Installing youtubedl using below command")
-            self.obj.logger.info(ytCmd)
-            result = sp.check_output(ytCmd,shell=True)
-            self.obj.logger.info(result)
-        except Exception as e:
-            self.obj.logger.error(e)
-            self.obj.logger.error("Fail to install youtubedl. Exiting !!!")
-            self.err = 1
-            return self.err
-        try:
-            self.obj.logger.info("Installing avconv using below command")
-            self.obj.logger.info(avCmd)
-            result = sp.check_output(avCmd,shell=True)
-            self.obj.logger.info(result)
-        except Exception as e:
-            self.obj.logger.error(e)
-            self.obj.logger.error("Fail to install avconv. Exiting !!!")
-            self.err = 1
-            return self.err
+        cmd = "wget https://yt-dl.org/downloads/latest/youtube-dl -O /usr/local/bin/youtube-dl"
+        self.obj.logger.info("Installing youtubedl")
+        (output,statusCode) = self.runCmd(cmd)
+        #if(output != 0):
+        if(statusCode != 0):
+            self.obj.logger.error("Failed to install Youtube-Dl. Exiting!!")
+            sys.exit(1)
+        else:
+            cmd = "apt-get install libav-tools"
+            self.obj.logger.info("Installing avconv")
+            (output,statusCode) = self.runCmd(cmd)
+            #if(output != 0):
+            if(statusCode != 0):
+                self.obj.logger.error("Failed to install Avconv. Exiting!!")
+                sys.exit(1)
 
-    def check_for_update(self):
-        """function to check for the update
+    def checkForUpdate(self):
+        """function to check YoutubeDl version
         """
-        current_version = "youtube-dl --version"
-        result = sp.check_output(current_version,shell=True)
-        self.obj.logger.info("Current youtube-dl version is {}".format(result.strip()))
+        cmd = "youtube-dl --version"
+        (output,statusCode) = self.runCmd(cmd)
+        if(statusCode == 0):
+            self.obj.logger.info("Current youtube-dl version is {}".format(output))
+        else:
+            self.obj.logger.debug("Can not get current Youtube-Dl version")
+
         self.obj.logger.info("Checking for any updates")
-        update_version = "sudo youtube-dl -U"
-        result = sp.check_output(update_version,shell=True)
-        self.obj.logger.info("Updated version is {}".format(result.strip()))
+        cmd = "youtube-dl -U"
+        (output,statusCode) = self.runCmd(cmd)
+        if(statusCode == 0):
+            version = self.regEx(output,r'[\d.]+').group(0)
+            self.obj.logger.info("Updated version is {}".format(version))
+        else:
+            self.obj.logger.debug("Can not update Youtube-Dl to latest version")
 
 
-    def check_youtube(self):
+    def checkYoutubeDl(self):
         """Function to check if youtube-dl exists or not.
            If not then call install youtube-dl and avconv()
         """
-        ytdl = "which youtube-dl" 
+        ytdl = "which youtube-dl"
         avconv = "which avconv"
-        if (not(os.system(ytdl)) and not(os.system(avconv))):
+        if not os.system(ytdl) and not os.system(avconv):
             self.obj.logger.info("Youtube-dl and avconv are present")
             #Check for update
-            #self.check_for_update()
+            self.checkForUpdate()
         else:
             self.obj.logger.info("Youtube-dl and avconv are not present")
-            self.install_youtbedl_avconv()
+            self.installYoutbedlAvconv()
 
-    def downloads_folder(self):
-        """Function to check if youtube download folder exists or not.
-           If not then create the folders.
+
+    def checkFileExists(self,filename,folder):
+        """Function to check if downloaded file already exists
         """
-        if os.path.exists(self.audio_folder) and os.path.exists(self.video_folder):
-            self.obj.logger.info("Youtube audio downloads Folder : {}".format(self.audio_folder))
-            self.obj.logger.info("Youtube video downloads Folder : {}".format(self.video_folder))
-        else:
-            self.obj.logger.info("Creating audio and video Downloads Folder")
-            try:
-                os.makedirs(self.audio_folder)
-                os.makedirs(self.video_folder)
-            except Exception as e:
-                self.obj.logger.error(e)
-                self.obj.logger.error("Failed to create Yotube Donwload Folder. Exiting !!!")
-                self.err = 1
+        #Since filename is absolute path, extract the filename only using split function
+        fileToRemove = folder+'/'+filename.split('/')[-1]
+        return (os.path.exists(fileToRemove))
 
-    def move_files(self,files_list,folder):
-        for files in files_list:
-            self.obj.logger.info("Moving {} to {}".format(files,folder))
-            try:
-                os.rename('{}'.format(files),'{}/{}'.format(folder,files))
-            except Exception as e:
-                self.obj.logger.error(e)
-                self.obj.logger.error("Failed to move downloaded files to youtube download folder")
-                self.err = 1
-
-    def save_to_youtube_downloads_folder(self):
-        """Function to save downloaded videos and audios to youtube-download folder
+    def moveAudioVideoFiles(self):
+        """Function to move mp3 and mp4 files to audio and video folder
         """
-        self.obj.logger.info("Saving downloaded audio files to {} ".format(self.audio_folder))
-        self.obj.logger.info("Saving downloaded video files to {} ".format(self.video_folder))
-        mp3_files = glob.glob("*.mp3")
-        mp4_files = glob.glob("*.mp4")
-        self.move_files(mp3_files,self.audio_folder)
-        self.move_files(mp4_files,self.video_folder)
 
-    def list_all_downloads(self):
-        folder_list = [self.audio_folder,self.video_folder]
-        for folder in folder_list:
-            result = glob.glob("{}/*".format(folder))
-            self.obj.logger.info("List of donwloaded files in {}".format(folder))
-            for downloaded in result:
-                self.obj.logger.info(downloaded)
+        dictionary = {self.youtubeAudioFolder : '*mp3', self.youtubeVideoFolder : '*mp4'}
 
+        for folder,format in dictionary.items():
+            for filename in glob.glob(self.youtubeDownloadFolder+format):
+                try:
+                    if not self.checkFileExists(filename,folder):
+                        shutil.move(filename,folder)
+                except Exception as e:
+                    self.obj.logger.debug("Error while moving {} to {}".format(filename, folder))
+                    self.obj.logger.debug(e)
+                    self.error = 1
 
-    def download_link(self):
+    def displayFiles(self):
+        """Function to display downloaded audio and video files
+        """
+        filesDict = {'audio' : self.youtubeAudioFolder , 'video' : self.youtubeVideoFolder}
+
+        for format,folder in filesDict.items():
+            self.obj.logger.info("List of {} files".format(format))
+            for file in glob.glob(folder+'/*'):
+                self.obj.logger.info(file)
+
+    def removeFiles(self):
+        """Function to remove files containing ' ' and '&' in their filename from youtube download folder
+        """
+        for filename in glob.glob(self.youtubeDownloadFolder+"*mp*"):
+            if '&' in filename or ' ' in filename:
+                os.remove(filename)
+
+    def downloadLink(self,link):
         """Function to download youtube link.
         """
-        #pdb.set_trace()
-        for link in self.links:
-            self.obj.logger.info("Going to download : {}".format(link))
-            cmd = "youtube-dl -k -x --audio-quality 2 --audio-format mp3 -f mp4 {}".format(link)
-            self.obj.logger.info(cmd)
-            try:
-                result = sp.check_output(cmd,shell=True)
-                self.obj.logger.debug(result)
-                self.save_to_youtube_downloads_folder()
-                #self.list_all_downloads()
-            except Exception as e:
-                self.obj.logger.error(e)
-                self.obj.logger.error("Failed to download youtube video and audio!!!")
-                self.err = 1
-        #self.save_to_youtube_downloads_folder()
-        self.list_all_downloads()
 
+        self.obj.logger.info("Going to download : {}".format(link))
+        #restrict filename option is to create a file with ASCII char only. No space and & in filename
+        cmd = r"youtube-dl -o '{}%(title)s.%(ext)s' --restrict-filenames -k -x --audio-quality 2 --audio-format mp3 -f mp4 {}".format(self.youtubeDownloadFolder,link)
+        (output,statusCode) = self.runCmd(cmd,1)
+        if(statusCode != 0):
+            self.obj.logger.error("Fails to download link : {}".format(link))
+            self.error = 1
+        if not self.error:
+            #above command will create two files.One downloaded and one which is modified using restrict filename option
+            #Remove file which contains space and & in file name
+            self.removeFiles()
+            #Update DownloadLinkFile
+            self.updateDownloadLinksFile(link)
+
+        return(self.error)
+
+    def cleanUp(self):
+        """Function to delete any duplicate audio and video files from downloads folder
+        """
+        try:
+            for file in glob.glob(self.youtubeDownloadFolder+'*mp*'):
+                os.remove(file)
+        except Exception as e:
+            self.obj.logger.debug("No stale files found")
+
+    def updateDownloadLinksFile(self,link):
+        """Function to update YoutubeDownloadLinksFile with link and corresponding donwloaded file
+        """
+
+        downloadFile = os.path.basename(glob.glob(self.youtubeDownloadFolder+'*mp3')[0])
+        #Open the file in append mode and write link,downloaded file
+        try:
+            with open(self.youtubeDownloadLinksFile,'a') as fh:
+                toWrite = link+','+downloadFile
+                fh.write(toWrite+"\n")
+                #fh.write("\n")
+        except Exception as e:
+            self.obj.logger.error("Error updating {} file")
+            self.obj.logger.debug(e)
+
+
+    def isLinkPreviouslyDownloaded(self,link):
+        """Function to check if given youtube link is already downloaded.
+        """
+        isDownload = False
+        if os.path.exists(self.youtubeDownloadLinksFile):
+            with open(self.youtubeDownloadLinksFile) as fh:
+                #Read line by line
+                for line in fh:
+                    if link == line.split(',')[0]:
+                        self.obj.logger.info("{} already downloaded. Corresponding file is".format(link))
+                        self.obj.logger.info(line)
+                        isDownload = True
+                        break
+        return(isDownload)
 
     def runYoutube(self):
-        # Define the steps here
-        self.check_youtube()
-        self.downloads_folder()
-        self.download_link()
-        return self.err
+        # check if youtube-dl exists or not
+        self.checkYoutubeDl()
+
+        #Iterate for each link
+        for link in self.links:
+            if not self.isLinkPreviouslyDownloaded(link):
+                if not self.downloadLink(link):
+                    self.moveAudioVideoFiles()
+                else:
+                    self.obj.logger.error("Downloading {} failed. Check if link is correct. Check n/w connections".format(link))
+        # Cleanup code
+        self.cleanUp()
+        # Display list of downloaded audio and videos
+        self.displayFiles()
+
+        return(self.error)
+
+
+class Logs(object):
+    """Function to display script logs and save it in the log file
+    """
+
+    def __init__(self,logfile):
+        self.logfile = logfile
+        #1.Create logger instance
+        self.logger = logging.getLogger()
+        self.logger.setLevel(logging.DEBUG)
+        #2.Create file handler to save test logs to file.
+        log_fh = logging.FileHandler(self.logfile,mode='w')
+        log_fh.setLevel(logging.DEBUG)
+        #3.Create console handler to ouput logs to Console as well.
+        log_ch = logging.StreamHandler()
+        log_ch.setLevel(logging.DEBUG)
+        #4.Create log formatter string
+        #formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)8s - %(message)s')
+        formatter = logging.Formatter('%(asctime)s - %(threadName)10s - %(levelname)8s - %(message)s')
+        log_fh.setFormatter(formatter)
+        log_ch.setFormatter(formatter)
+        #5.Add 4 to handlers
+        self.logger.addHandler(log_fh)
+        self.logger.addHandler(log_ch)
 
 
 def getArgs():
@@ -163,10 +309,10 @@ def getArgs():
 if __name__ == "__main__":
     #Get arguments from cmd line
     link = getArgs()
+    #setting status initial value to 0
+    status = 0
     ytObj = Youtubedl(link)
     status = ytObj.runYoutube()
-    print "Test finished with return status as {}".format(status)
+    #ytObj.save_to_youtube_downloads_folder()
+    print("Test finished with return status as {}".format(status))
     sys.exit(status)
-
-
-
