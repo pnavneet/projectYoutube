@@ -11,6 +11,7 @@ try:
     import socket
     from timeit import default_timer as timer
     from logModule import Logs
+    import math
 except ImportError:
     raise ImportError("\n -E- Encountered import python exception!!!")
 
