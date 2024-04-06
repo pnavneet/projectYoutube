@@ -6,6 +6,7 @@ class TestYoutubedl(unittest.TestCase):
 
     def test_create_folder(self):
         example = 'ut2'
+        # obj  = Youtubedl()
         result = Youtubedl.createFolder(self, folder=example)
         self.assertEqual(result, None)
 
