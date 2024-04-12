@@ -23,6 +23,6 @@ jobs:
         #list steps for this job
         steps:
             - name: Get hostname & username
-              run: 
-                hostname
+              run: | 
+                hostname;
                 whoami
