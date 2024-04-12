@@ -15,4 +15,4 @@ jobs:
         #list steps for this job
         steps:
             - name: Get ip address
-              run: ipconfig  
+              run: ifconfig  
