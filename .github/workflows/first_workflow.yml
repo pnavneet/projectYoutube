@@ -1,0 +1,18 @@
+# first github actions workflow file
+
+#name of workflow file
+name: Learning github actions
+
+#event on which it will run (to trigger manually use workflow_dispatch)
+on: workflow_dispatch
+
+#jobs which will be running when this workflow is triggered
+jobs:
+    #name your job can be any
+    ip-address:
+        #where this job will run (ubuntu, windows or self hosted)
+        runs-on: ubuntu-latest
+        #list steps for this job
+        steps:
+            - name: Get ip address
+              run: ipconfig  
