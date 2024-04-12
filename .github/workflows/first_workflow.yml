@@ -15,4 +15,14 @@ jobs:
         #list steps for this job
         steps:
             - name: Get ip address
-              run: ifconfig  
+              run: ifconfig
+
+    hostname:
+        #where this job will run (ubuntu, windows or self hosted)
+        runs-on: ubuntu-latest
+        #list steps for this job
+        steps:
+            - name: Get hostname & username
+              run: 
+                hostname
+                whoami
