@@ -1,0 +1,22 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debug: Run With Link or File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/youtubeClass.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--link", "${input:ytInput}"
+            ]
+        }
+    ],
+    "inputs": [
+        {
+            "id": "ytInput",
+            "type": "promptString",
+            "description": "Enter YouTube link OR path to CSV/TXT file"
+        }
+    ]
+}
